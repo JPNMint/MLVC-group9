@@ -59,6 +59,7 @@ class Perceptron:
             #y_pred = self.unit_step(output)
             #predicted.append(y_pred)
         #output = np.dot(self.w.T, X)
+
         activation = self.sigmoid(output)
 
         return activation
@@ -117,9 +118,10 @@ class Perceptron:
                 error = y - prediction_for_update
                 # update the weights of the perceptron from the random sample
                 update = self.lr * error
+                delta_w = np.dot(np.transpose(X, [1, 0]), update)
                 #TODO self.w update
-                self.w = self.w + np.dot(np.transpose(X, [1, 0]), update)
-                self.bias = self.bias + update
+                self.w += delta_w
+                self.bias +=  update
 
 
                 #self.w += np.dot(error,X)*self.lr # to be corrected by you
@@ -141,8 +143,10 @@ class Perceptron:
         Returns:
             Class label of X
         """
-        output = np.dot(X, self.w) + self.bias
-        y_pred = self.unit_step(output)
+        output = np.dot(self.w.T, X)
+
+        y_pred = self.sigmoid(output)
+
         return y_pred
 
     def sigmoid(self, X):
