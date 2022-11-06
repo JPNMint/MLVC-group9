@@ -89,10 +89,6 @@ class Perceptron:
 
         # Training.
         for epoch in trange(self.epochs):
-
-
-
-
             # predict all items from the dataset original
             predictions = self.perc(np.transpose(X, [1, 0]))
             # compare with gt
@@ -103,8 +99,8 @@ class Perceptron:
                 #sample one prediction at random
                 n = randint(0,n_observations-1)
                 prediction_for_update = self.perc(X[n,:])
-                # calculate error of random sample
-                self.error =  (y[n] - prediction_for_update)
+                # calculate error of random sample true - pred
+                self.error = (y[n] - prediction_for_update)
                 # update bias
                 self.bias = self.bias + self.lr * self.error
                 #update weights
@@ -133,8 +129,9 @@ class Perceptron:
 
         # basically same as fit function
         output = np.dot(self.w.T, np.transpose(X, [1, 0]))
-
+        #tanh delivered the most promising result
         y_pred = np.tanh(output)
+        #np.sign(output)
         #self.sigmoid(output)
 
         return y_pred
