@@ -31,11 +31,9 @@ class Perceptron:
         self.lr = lr
         self.epochs = epochs
         self.w =  None
+        self.error = 0.
 
-        # I was wondering why there was no self.bias in the pre-code. After trying the perceptron with and without bias
-        # the result ended up better when taking no bias into the equation. Therefore, I left it out in the final model.
-        # to test with bias just uncomment all the self.bias in the code
-        #self.bias = None
+        self.bias = None
     def perc(self,X):
         """ Perceptron function.
 
@@ -46,8 +44,7 @@ class Perceptron:
             class labels of X
         """
         #Transpose weights for dot product between X and weights and also add bias
-        output = np.dot(self.w.T, X)\
-                 #+ self.bias
+        output = np.dot(self.w.T, X) + self.bias
         #the output will then be fed into an activation function which gives us the final prediction
         #trying out different activation functions
 
@@ -59,15 +56,11 @@ class Perceptron:
 
         # tanh and sign performed best, I suspect that we have a lot of negative values which get turned to 0 when using the other
         # functions, while tanh and sign can return negative values up to -1
+        #return activation
         return activation
 
 
-        # for ix, i in enumerate(X):
-        #     # TODO
-        #     output = self.predict(i)
-        #     y_pred = self.sigmoid(output)
 
-    
     def fit(self, X, y):
         """ Training function.
 
@@ -87,17 +80,15 @@ class Perceptron:
         self.w = np.zeros(m_features)
 
 
-        #self.bias = 0
+        self.bias = 0
 
         y_cor = np.array([1 if i > 0 else 0 for i in y])
         # Empty list to store how many examples were
         # misclassified at every iteration.
         miss_classifications = []
-        
+
         # Training.
         for epoch in trange(self.epochs):
-            #for idx, i in enumerate(X):
-                #output = self.prec(x_i)
 
 
 
@@ -112,21 +103,15 @@ class Perceptron:
                 #sample one prediction at random
                 n = randint(0,n_observations-1)
                 prediction_for_update = self.perc(X[n,:])
-                error = y - prediction_for_update
-
-                # update the weights of the perceptron from the random sample
-                # error * learning rate * X = delta weight
-                update = self.lr * error
-                delta_w = np.dot(np.transpose(X, [1, 0]), update)
-
-                #add delta weight to previous weight
-
-                self.w += delta_w
-
-                #self.bias += update
+                # calculate error of random sample
+                self.error =  (y[n] - prediction_for_update)
+                # update bias
+                self.bias = self.bias + self.lr * self.error
+                #update weights
+                for i in range(m_features):
+                    self.w[i] = self.w[i] + self.lr * self.error * X[n,:][i]
 
 
-                #self.w += np.dot(error,X)*self.lr # to be corrected by you
 
 
             # Appending number of misclassified examples
@@ -149,7 +134,8 @@ class Perceptron:
         # basically same as fit function
         output = np.dot(self.w.T, np.transpose(X, [1, 0]))
 
-        y_pred = self.sigmoid(output)
+        y_pred = np.tanh(output)
+        #self.sigmoid(output)
 
         return y_pred
     # activation functions for fit and predict to try out
