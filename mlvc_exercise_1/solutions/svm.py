@@ -1,5 +1,6 @@
-import numpy as np
+import torch as np
 import random
+
 
 class SVM():
 
@@ -8,21 +9,27 @@ class SVM():
     # C - upper boundary for alpha values
     # epsilon - threshold value to tell if algorithm converged
 
-    def __init__(self, max_iter=5, C=2, e=0.0002):
+    def __init__(self, max_iter=40, C=2, e=0.0002):
 
         self.max_iter = max_iter
         self.C = C
         self.epsilon = e
+        self.device = "cuda" if np.cuda.is_available() else "cpu"
 
         # We decided to use a gaussian kernel
         # we could also use a different kernel function here
         self.kernel = self.gaussian_kernel_function
 
     def fit(self, X, y):
+        device = self.device
 
         print("Setup --- Gaussian kernel --- C: " + str(self.C) + " --- epsilon: " + str(self.epsilon) + "\n")
+       
+        X = np.from_numpy(X).to(device)
+        y = np.from_numpy(y).to(device)
+        
         n_observations, m_features = X.shape
-        alpha_vector = np.zeros(n_observations)
+        alpha_vector = np.zeros(n_observations).to(device)
         iter = 0
 
         # SMO (Sequential Minimal Optimization)
@@ -38,12 +45,12 @@ class SVM():
             print("Iteration " + str(iter) + " - (max iterations: " + str(self.max_iter) + ")")
 
             # Saving previous alpha values
-            alpha_vector_old = np.copy(alpha_vector)
+            alpha_vector_old = np.clone(alpha_vector)
 
             for j in range(0, n_observations):
 
-                if j%10 == 0:
-                    print("step: " + str(j/10) + " of " + str(n_observations/10))
+                #if j%900 == 0:
+                #    print("step: " + str(j/900) + " of " + str(n_observations/900))
 
                 i = self.generate_random_number(n_observations, j)
 
@@ -82,8 +89,9 @@ class SVM():
 
 
             # Compute the norm of the difference of our old and new alpha vector
-            # this is needed for checking for convergence
-            norm_of_difference = np.linalg.norm(alpha_vector - alpha_vector_old)
+            # this is needed for checking for convergenc
+            sub = np.sub(alpha_vector, alpha_vector_old)
+            norm_of_difference = np.linalg.norm(sub)
 
             print("Current norm value: " + str(norm_of_difference) + " algorithm stops at " + str(self.epsilon) + " \n")
 
@@ -103,7 +111,15 @@ class SVM():
 
     # Here we predict the results for any test set
     def predict(self, X):
-        return self.compute_predictions(X, self.w, self.b)
+        device = self.device
+
+        X = np.from_numpy(X).to(device)
+        final = self.compute_predictions(X, self.w, self.b)
+        final = final.cpu()
+        final = final.numpy()
+
+
+        return final
 
     ############## Helper functions ##############
 
@@ -123,7 +139,7 @@ class SVM():
 
     # Function for computing the predictions
     def compute_predictions(self, X, w, b):
-        return np.sign(np.dot(w.T, X.T) + b)
+        return np.sign(np.matmul(w.T.float(), X.T.float()) + b)
 
     # Function for computing the error
     def compute_error(self, x_k, y_k, w, b):
@@ -132,16 +148,16 @@ class SVM():
     # Function for computing the bias
     def compute_b(self, X_mtx, y_vector, w_vector):
 
-        tmp = y_vector - np.dot(w_vector.T, X_mtx.T)
+        tmp = y_vector - np.matmul(w_vector.T.float(), X_mtx.T.float())
 
-        return np.mean(tmp)
+        return np.mean(tmp.float())
 
     # Function for computing the weights
     def compute_w(self, alpha_vector, y_vector, X_mtx):
 
         tmp = np.multiply(alpha_vector, y_vector)
 
-        return np.dot(X_mtx.T, tmp)
+        return np.matmul(X_mtx.T.float(), tmp.float())
 
     # Function for computing the lower bound for alpha j
     def compute_L(self, y_i, y_j, alpha_i, alpha_j):
@@ -178,4 +194,7 @@ class SVM():
 
     # The kernel function we decided to use - Gaussian Kernel
     def gaussian_kernel_function(self, x1, x2, sigma=1):
-        return np.exp(-1* (np.linalg.norm(x1 - x2, 2)) ** 2 / (2 * sigma ** 2))
+
+        tmp = np.sub(x1, x2).float()
+        
+        return np.exp(-1* (np.linalg.norm(tmp, 2)) ** 2 / (2 * sigma ** 2))
