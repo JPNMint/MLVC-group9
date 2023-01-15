@@ -6,6 +6,7 @@ from einops.layers.torch import Rearrange
 from torch import nn
 from util.vision_transformer_util import bcolors
 
+
 ########### TO-DO ###########
 # 1. Implement and utilize positional embedding
 #   --> See: self.pos_embedding = nn.Parameter()
@@ -99,6 +100,18 @@ class Attention(nn.Module):
         """
         super().__init__()
         # TODO: Implement attention mechanism
+        inner_dimension = heads * dim_head
+        project_out = not (heads == 1 and dim_head == dim)
+
+        self.scale = dim_head ** -0.5
+        self.heads = heads
+
+        self.to_qkv = nn.Linear(dim, inner_dimension * 3, bias=False)
+
+        self.to_out = nn.Sequential(
+            nn.Linear(inner_dimension, dim),
+        ) if project_out else nn.Identity()
+
 
     def forward(self, x):
         """Run input through attention layer
@@ -111,8 +124,20 @@ class Attention(nn.Module):
         """
 
         # TODO: Use attention mechanism
+        b, n, _, h = *x.shape, self.heads
+        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), qkv)
+
+        dots = torch.einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
+
+        attn = dots.softmax(dim=-1)
+
+        out = torch.einsum('b h i j, b h j d -> b h i d', attn, v)
+        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = self.to_out(out)
 
         return out
+
 
 
 class Transformer(nn.Module):
@@ -204,7 +229,8 @@ class ViT(nn.Module):
             nn.Linear(patch_dim, dim),
         )
         # TODO: Implement positional embedding
-        self.pos_embedding = nn.Parameter()
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
+
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim)
@@ -231,7 +257,11 @@ class ViT(nn.Module):
         x = torch.cat((cls_tokens, x), dim=1)
 
         # TODO: Use positional embedding. NOTE: The next line (x += self.pos_embedding) requires modification
-        x += self.pos_embedding
+        x = x + self.pos_embedding[:, :(n + 1)]
+
+        x = self.dropout(x)
+
+        # x += self.pos_embedding
         x = self.transformer(x)
 
         x = x.mean(dim=1) if self.pool == 'mean' else x[:, 0]
@@ -265,7 +295,7 @@ class ViT(nn.Module):
             predictions_raw = self.forward(data)
 
             predictions_raw_numpy = predictions_raw[:,
-                                                    0].cpu().detach().numpy()
+                                    0].cpu().detach().numpy()
             predictions = predictions_raw_numpy.copy()
             predictions = predictions > 0.5
 
