@@ -101,16 +101,15 @@ class Attention(nn.Module):
         super().__init__()
         # TODO: Implement attention mechanism
         inner_dimension = heads * dim_head
-        project_out = not (heads == 1 and dim_head == dim)
 
         self.scale = dim_head ** -0.5
         self.heads = heads
 
+        # linear layer for projection of Z into the spaces Q, K, V
         self.to_qkv = nn.Linear(dim, inner_dimension * 3, bias=False)
 
-        self.to_out = nn.Sequential(
-            nn.Linear(inner_dimension, dim),
-        ) if project_out else nn.Identity()
+        # Here we transform our heads with a linear transformation to our original dimension (dim)
+        self.to_out = nn.Sequential(nn.Linear(inner_dimension, dim))
 
 
     def forward(self, x):
@@ -125,15 +124,28 @@ class Attention(nn.Module):
 
         # TODO: Use attention mechanism
         b, n, _, h = *x.shape, self.heads
+
+        # q - queries
+        # k - keys
+        # h is basically a hyperparameter
+        # dot product between keys and queries should represent the relationship that matters
+        # The N square complexity comes from the multiplication of queries and keys
         qkv = self.to_qkv(x).chunk(3, dim=-1)
+
+        # decompose q, k, v
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h=h), qkv)
 
-        dots = torch.einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
+        scaled_dots = torch.einsum('b h i d, b h j d -> b h i j', q, k) * self.scale
 
-        attn = dots.softmax(dim=-1)
+        attention = scaled_dots.softmax(dim=-1)
 
-        out = torch.einsum('b h i j, b h j d -> b h i d', attn, v)
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        # Multiplication of attention with v, as shown in lecture.
+        out = torch.einsum('b h i j, b h j d -> b h i d', attention, v)
+
+        # Recompose/merge heads (h) with dim head (the dimension of the computations so far)
+        out = rearrange(out, 'b h t d -> b t (h d)')
+
+        # Here we transform our heads with a linear transformation to our original dimension (dim)
         out = self.to_out(out)
 
         return out
@@ -229,6 +241,8 @@ class ViT(nn.Module):
             nn.Linear(patch_dim, dim),
         )
         # TODO: Implement positional embedding
+
+        # We have to add 1 here, because we also have the dummy token x_class for the class prediction
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
 
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
@@ -259,7 +273,7 @@ class ViT(nn.Module):
         # TODO: Use positional embedding. NOTE: The next line (x += self.pos_embedding) requires modification
         x = x + self.pos_embedding[:, :(n + 1)]
 
-        #x = self.dropout(x)
+        x = self.dropout(x)
 
         # x += self.pos_embedding
         x = self.transformer(x)
