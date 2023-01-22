@@ -273,7 +273,7 @@ class ViT(nn.Module):
         # TODO: Use positional embedding. NOTE: The next line (x += self.pos_embedding) requires modification
         x = x + self.pos_embedding[:, :(n + 1)]
 
-        x = self.dropout(x)
+        #x = self.dropout(x)
 
         # x += self.pos_embedding
         x = self.transformer(x)
