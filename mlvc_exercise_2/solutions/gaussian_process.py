@@ -33,8 +33,10 @@ def gaussian_process(X1, y1, X2, kernel_func):
 
     # Posterior mean
     μ2 = np.matmul(result,y1)
-    kernel_output_X2_X2 = kernel_func(X2, X2)
+
+
     # Posterior covariance
+    kernel_output_X2_X2 = kernel_func(X2, X2)
     covariance2 = kernel_output_X2_X2 - np.matmul(result,kernel_output_X1_X2)
     return μ2, covariance2  # mean, covariance
 
@@ -58,7 +60,7 @@ def gaussian_process_noise(X1, y1, X2, kernel_func, n1, sigma_noise):
         μ2 (numpy.ndarray): Posterior mean
         covariance2 (numpy.ndarray): Posterior covariance
     """
-    # Kernel of X1 X1 and noise
+    # Kernel of X1 X1 + noise
     kernel_output_X1_X1 = kernel_func(X1, X1) + ((sigma_noise ** 2) * np.eye(n1))
 
     #Kernel of original and test
@@ -69,8 +71,9 @@ def gaussian_process_noise(X1, y1, X2, kernel_func, n1, sigma_noise):
 
     # Posterior mean
     μ2 = np.matmul(result,y1)
-    kernel_output_X2_X2 = kernel_func(X2, X2)
+
     # Posterior covariance
+    kernel_output_X2_X2 = kernel_func(X2, X2)
     covariance2 = kernel_output_X2_X2 - np.matmul(result,kernel_output_X1_X2)
 
 
